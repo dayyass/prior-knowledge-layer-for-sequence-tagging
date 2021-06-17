@@ -90,3 +90,11 @@
 
 
 **Metrics**:
+
+
+**NER Datasets**
+
+project to collect datasets for named entity recognition using git lfs
+* [15 Free Datasets and Corpora for Named Entity Recognition (NER)](https://lionbridge.ai/datasets/15-free-datasets-and-corpora-for-named-entity-recognition-ner/)
+* [NeuroNER](https://github.com/Franck-Dernoncourt/NeuroNER)
+* [Datasets for Entity Recognition](https://github.com/juand-r/entity-recognition-datasets)
