@@ -19,7 +19,7 @@ def init_prior_knowledge_matrix(
         prohibited_transition_value (int, optional): Value of prohibited transitions. Defaults to 1.
 
     Returns:
-        np.ndarray: Prior knowledge matrix.
+        torch.Tensor: Prior knowledge matrix.
     """
 
     n = len(labels)
