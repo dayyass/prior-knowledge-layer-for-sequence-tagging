@@ -1,14 +1,17 @@
 from typing import Dict, List, Set
 
-import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 
 def init_prior_knowledge_matrix(
     labels: List[str],
     prohibited_transitions: Dict[str, Set[str]],
     prohibited_transition_value: int = 1,
-) -> np.ndarray:
-    """Initialization of prior knowledge matrix from labels and prohibited transitions.
+) -> torch.Tensor:
+    """
+    Initialization of prior knowledge matrix from labels and prohibited transitions.
 
     Args:
         labels (List[str]): Labels.
@@ -20,7 +23,7 @@ def init_prior_knowledge_matrix(
     """
 
     n = len(labels)
-    prior_knowledge_matrix = np.zeros(shape=(n, n), dtype="float32")
+    prior_knowledge_matrix = torch.zeros((n, n), dtype=torch.float)
 
     for i, label_from in enumerate(labels):
         for j, label_to in enumerate(labels):
@@ -31,3 +34,48 @@ def init_prior_knowledge_matrix(
                     prior_knowledge_matrix[i, j] = prohibited_transition_value
 
     return prior_knowledge_matrix
+
+
+class PriorKnowledgeLayer(nn.Module):
+    """
+    Prior Knowledge Layer.
+    """
+
+    def __init__(self, prior_knowledge_matrix: torch.Tensor) -> None:
+        """
+        Prior Knowledge Layer initialization.
+
+        Args:
+            prior_knowledge_matrix (torch.Tensor): Prior knowledge matrix.
+        """
+
+        super(PriorKnowledgeLayer, self).__init__()
+        self.prior_knowledge_matrix = nn.Parameter(prior_knowledge_matrix)
+
+    def forward(self, logits: torch.Tensor) -> torch.Tensor:
+        """
+        Compute matrix loss from logits.
+
+        Args:
+            logits (torch.Tensor): Logits.
+
+        Returns:
+            torch.Tensor: Matrix loss of shape (batch_size, seq_len-1).
+        """
+
+        log_softmax = F.log_softmax(logits, dim=-1)
+
+        timestamp_loss_list = []
+
+        # iterate ower seq_len
+        for i in range(log_softmax.shape[1] - 1):
+            timestamp_loss = (
+                log_softmax[:, i, :]
+                @ self.prior_knowledge_matrix
+                @ log_softmax[:, i + 1, :].T
+            ).diag()
+            timestamp_loss_list.append(timestamp_loss)
+
+        # shape (batch_size, seq_len-1)
+        loss_matrix = torch.stack(timestamp_loss_list, dim=-1)
+        return loss_matrix
