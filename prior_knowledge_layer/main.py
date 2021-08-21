@@ -65,17 +65,38 @@ class PriorKnowledgeLayer(nn.Module):
 
         log_softmax = F.log_softmax(logits, dim=-1)
 
-        timestamp_loss_list = []
-
-        # iterate ower seq_len
-        for i in range(log_softmax.shape[1] - 1):
-            timestamp_loss = (
-                log_softmax[:, i, :]
-                @ self.prior_knowledge_matrix
-                @ log_softmax[:, i + 1, :].T
-            ).diag()
-            timestamp_loss_list.append(timestamp_loss)
-
         # shape (batch_size, seq_len-1)
-        loss_matrix = torch.stack(timestamp_loss_list, dim=-1)
+        loss_matrix = adjacent_reduction_over_seq_len(
+            logits=log_softmax,
+            prior_knowledge_matrix=self.prior_knowledge_matrix,
+            )
         return loss_matrix
+
+
+def adjacent_reduction_over_seq_len(
+    logits: torch.Tensor,
+    prior_knowledge_matrix: torch.Tensor,
+    ) -> torch.Tensor:
+    """
+    TODO
+    """
+
+    batch_size, seq_len, _ = logits.shape
+
+    adjacent_reduction_list = []
+
+    # iterate ower seq_len
+    for i in range(seq_len - 1):
+        adjacent_reduction = (
+            logits[:, i, :]
+            @ prior_knowledge_matrix
+            @ logits[:, i + 1, :].T
+        ).diag()
+
+        adjacent_reduction_list.append(adjacent_reduction)
+
+    adjacent_matrix = torch.stack(adjacent_reduction_list, dim=-1)
+
+    assert adjacent_matrix.shape == (batch_size, seq_len - 1)
+
+    return adjacent_matrix
