@@ -2,7 +2,6 @@ from typing import Dict, List, Set
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 def init_prior_knowledge_matrix(
@@ -50,6 +49,7 @@ class PriorKnowledgeLayer(nn.Module):
         """
 
         super(PriorKnowledgeLayer, self).__init__()
+
         self.prior_knowledge_matrix = nn.Parameter(prior_knowledge_matrix)
 
     def forward(self, logits: torch.Tensor) -> torch.Tensor:
@@ -63,35 +63,43 @@ class PriorKnowledgeLayer(nn.Module):
             torch.Tensor: Matrix loss of shape (batch_size, seq_len-1).
         """
 
-        log_softmax = F.log_softmax(logits, dim=-1)
-
-        # shape (batch_size, seq_len-1)
-        loss_matrix = adjacent_reduction_over_seq_len(
-            logits=log_softmax,
+        loss_matrix = _adjacent_reduction_over_seq_len(
+            logits=logits,
             prior_knowledge_matrix=self.prior_knowledge_matrix,
-            )
+        )
+
         return loss_matrix
 
 
-def adjacent_reduction_over_seq_len(
+def _adjacent_reduction_over_seq_len(
     logits: torch.Tensor,
     prior_knowledge_matrix: torch.Tensor,
-    ) -> torch.Tensor:
+) -> torch.Tensor:
     """
-    TODO
+    Tensor adjacent reduction over seq_len dimension.
+
+    Args:
+        logits (torch.Tensor): Logits.
+        prior_knowledge_matrix (torch.Tensor): Prior knowledge matrix.
+
+    Returns:
+        torch.Tensor: Reduced tensor of shape (batch_size, seq_len-1).
     """
 
     batch_size, seq_len, _ = logits.shape
+
+    distributions = torch.log_softmax(logits, dim=-1)
 
     adjacent_reduction_list = []
 
     # iterate ower seq_len
     for i in range(seq_len - 1):
-        adjacent_reduction = (
-            logits[:, i, :]
-            @ prior_knowledge_matrix
-            @ logits[:, i + 1, :].T
-        ).diag()
+
+        adjacent_reduction = _reduction_over_two_distributions(
+            distr_1=distributions[:, i, :],
+            distr_2=distributions[:, i + 1, :],
+            prior_knowledge_matrix=prior_knowledge_matrix,
+        )
 
         adjacent_reduction_list.append(adjacent_reduction)
 
@@ -100,3 +108,23 @@ def adjacent_reduction_over_seq_len(
     assert adjacent_matrix.shape == (batch_size, seq_len - 1)
 
     return adjacent_matrix
+
+
+def _reduction_over_two_distributions(
+    distr_1: torch.Tensor,
+    distr_2: torch.Tensor,
+    prior_knowledge_matrix: torch.Tensor,
+) -> torch.Tensor:
+    """
+    Reduction over two distributions and prior knowledge matrix.
+
+    Args:
+        distr_1 (torch.Tensor): First distribution.
+        distr_2 (torch.Tensor): Second distribution.
+        prior_knowledge_matrix (torch.Tensor): Prior knowledge matrix.
+
+    Returns:
+        torch.Tensor: Reduction over two distributions.
+    """
+
+    return (distr_1 @ prior_knowledge_matrix @ distr_2.T).diag()
