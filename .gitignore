@@ -1,7 +1,14 @@
-*.ipynb_checkpoints/
 *.DS_Store
-*__pycache__/
-*.cache/
-*.pyc
-/venv/
+*.ipynb_checkpoints
+
+# cache
+*__pycache__
+**.mypy_cache
+*.cache
+
+# coverage
+*.coverage
+*coverage.xml
+
+venv
 .idea
