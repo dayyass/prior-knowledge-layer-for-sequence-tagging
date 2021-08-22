@@ -60,7 +60,7 @@ class PriorKnowledgeLayer(nn.Module):
             logits (torch.Tensor): Logits.
 
         Returns:
-            torch.Tensor: Matrix loss of shape (batch_size, seq_len-1).
+            torch.Tensor: Matrix loss of shape (batch_size, seq_len - 1).
         """
 
         loss_matrix = _adjacent_reduction_over_seq_len(
@@ -83,14 +83,13 @@ def _adjacent_reduction_over_seq_len(
         prior_knowledge_matrix (torch.Tensor): Prior knowledge matrix.
 
     Returns:
-        torch.Tensor: Reduced tensor of shape (batch_size, seq_len-1).
+        torch.Tensor: Reduced tensor of shape (batch_size, seq_len - 1).
     """
-
-    batch_size, seq_len, _ = logits.shape
 
     distributions = torch.log_softmax(logits, dim=-1)
 
-    adjacent_reduction_list = []
+    batch_size, seq_len, _ = distributions.shape
+    adjacent_matrix = torch.zeros((batch_size, seq_len - 1), dtype=torch.float)
 
     # iterate ower seq_len
     for i in range(seq_len - 1):
@@ -101,11 +100,7 @@ def _adjacent_reduction_over_seq_len(
             prior_knowledge_matrix=prior_knowledge_matrix,
         )
 
-        adjacent_reduction_list.append(adjacent_reduction)
-
-    adjacent_matrix = torch.stack(adjacent_reduction_list, dim=-1)
-
-    assert adjacent_matrix.shape == (batch_size, seq_len - 1)
+        adjacent_matrix[:, i] = adjacent_reduction
 
     return adjacent_matrix
 
